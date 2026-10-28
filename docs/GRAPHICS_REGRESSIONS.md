@@ -1,5 +1,26 @@
 # Graphics regression checkpoint
 
+## 2026-10-28: raw frame dump format guard (draft PR)
+
+The on-demand `DumpRaw` capture in `vk_presenter.cpp` always allocated a
+`width * height * 4` byte buffer and called `vkCmdCopyImageToBuffer`
+even when `RawChannelOrder` returned `unknown`. Images such as
+`R16G16B16A16Sfloat` (8 bytes/pixel) or `R32G32B32A32Sfloat`
+(16 bytes/pixel) exceed that allocation, so the optional diagnostic
+could request an invalid Vulkan copy. Even when the copy happened to
+succeed, its `unknown` bytes were not safely decodable as RGBA/BGRA.
+
+The raw dumper now accepts the *actual backing image format* for display
+captures and checks the format **before** allocating or issuing the GPU
+copy. It supports only explicitly known four-byte R8G8B8A8 and B8G8R8A8
+UNORM/sRGB formats. HDR, float, depth or otherwise unknown formats log a
+warning and are skipped; they are not mislabeled as 8-bit color. The
+normal presentation path is unchanged when frame capture is disabled.
+The policy is checked by a standalone GPU-free C++ test and a source
+precondition test; full Windows compilation and hardware testing remain
+separate gates. This is a *diagnostic safety fix*, not evidence that
+black screens in #43/#47 are resolved.
+
 ## 2026-10-27: swapchain composite-alpha surface compatibility (draft)
 
 The old `Swapchain::SetSurfaceProperties` selected `eOpaque` whenever
