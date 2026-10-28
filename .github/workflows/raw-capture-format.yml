@@ -1,0 +1,40 @@
+name: Raw capture 8-bit format safety
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/raw-capture-format.yml'
+      - 'gpu/shadps4/video_core/renderer_vulkan/vk_raw_capture_format.h'
+      - 'gpu/shadps4/video_core/renderer_vulkan/vk_presenter.cpp'
+      - 'tests/test_raw_capture_format.cpp'
+      - 'tests/test_raw_capture_structure.py'
+      - 'gpu/CMakeLists.txt'
+      - 'tools/run_tests.sh'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/raw-capture-format.yml'
+      - 'gpu/shadps4/video_core/renderer_vulkan/vk_raw_capture_format.h'
+      - 'gpu/shadps4/video_core/renderer_vulkan/vk_presenter.cpp'
+      - 'tests/test_raw_capture_format.cpp'
+      - 'tests/test_raw_capture_structure.py'
+
+permissions:
+  contents: read
+
+jobs:
+  formats:
+    name: Reject incompatible RAW image formats without GPU
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Vulkan headers
+        run: sudo apt-get update -qq && sudo apt-get install -y libvulkan-dev
+      - name: Build and run pure C++ policy tests
+        run: |
+          set -euo pipefail
+          g++ -std=c++20 -O2 -Wall -Wextra -Werror -Igpu/shadps4 \
+            tests/test_raw_capture_format.cpp -o /tmp/raw-capture-format-test
+          /tmp/raw-capture-format-test
+      - name: Verify renderer actually gates unsafe copies
+        run: python -m unittest discover -s tests -p test_raw_capture_structure.py -v
