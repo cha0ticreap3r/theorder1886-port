@@ -1,0 +1,34 @@
+name: Raw frame visibility triage
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/raw-frame-visibility.yml'
+      - 'tools/black_screen_triage.py'
+      - 'tests/test_black_screen_triage.py'
+      - 'docs/RAW_FRAME_VISIBILITY_TRIAGE.md'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/raw-frame-visibility.yml'
+      - 'tools/black_screen_triage.py'
+      - 'tests/test_black_screen_triage.py'
+
+permissions:
+  contents: read
+
+jobs:
+  raw:
+    name: Classify RAW display/output captures with synthetic fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify CLI syntax
+        run: python -m py_compile tools/black_screen_triage.py
+      - name: Verify stages, dimensions, privacy and comparisons
+        env:
+          PYTHONPATH: tests
+        run: python -m unittest -v test_black_screen_triage
