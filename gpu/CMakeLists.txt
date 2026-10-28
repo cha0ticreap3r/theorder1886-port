@@ -402,6 +402,11 @@ target_compile_options(no-msaa-test PRIVATE -UNDEBUG)
 target_include_directories(no-msaa-test PRIVATE shim shadps4 third_party/gcn/include)
 target_link_libraries(no-msaa-test PRIVATE Vulkan::Headers fmt::fmt Boost::headers magic_enum::magic_enum)
 # Pure policy test: Vulkan headers only; no physical device is created.
+add_executable(raw-capture-format-test EXCLUDE_FROM_ALL ../tests/test_raw_capture_format.cpp)
+target_compile_options(raw-capture-format-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+target_include_directories(raw-capture-format-test PRIVATE shadps4)
+target_link_libraries(raw-capture-format-test PRIVATE Vulkan::Headers)
+
 add_executable(swapchain-policy-test EXCLUDE_FROM_ALL ../tests/test_swapchain_policy.cpp)
 target_compile_options(swapchain-policy-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
 target_include_directories(swapchain-policy-test PRIVATE shadps4)

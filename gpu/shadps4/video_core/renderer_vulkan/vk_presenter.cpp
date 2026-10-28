@@ -19,6 +19,7 @@
 #include "video_core/renderer_vulkan/vk_presenter.h"
 #include "video_core/renderer_vulkan/vk_warmup_inbox.h"
 #include "video_core/renderer_vulkan/vk_rasterizer.h"
+#include "video_core/renderer_vulkan/vk_raw_capture_format.h"
 #include "video_core/texture_cache/image.h"
 
 #include <algorithm>
@@ -362,22 +363,17 @@ static vk::Format GetFrameViewFormat(const Libraries::VideoOut::PixelFormat form
 }
 
 // port: raw copy of an image for THEORDER_FRAME_DUMP_TRIGGER, written once the GPU is done.
-static const char* RawChannelOrder(vk::Format format) {
-    switch (format) {
-    case vk::Format::eR8G8B8A8Unorm:
-    case vk::Format::eR8G8B8A8Srgb:
-        return "rgba";
-    case vk::Format::eB8G8R8A8Unorm:
-    case vk::Format::eB8G8R8A8Srgb:
-        return "bgra";
-    default:
-        return "unknown";
-    }
-}
-
 static void DumpRaw(const Instance& instance, Scheduler& scheduler, vk::CommandBuffer cmdbuf,
                     vk::Image image, vk::ImageLayout layout, u32 w, u32 h, const char* name,
-                    int index, const char* channel_order) {
+                    int index, vk::Format actual_format) {
+    const char* channel_order = RawCaptureChannelOrder(actual_format);
+    if (!channel_order) {
+        // The transfer buffer below is *always* w*h*4 bytes. The format's
+        // actual byte size must be known before vkCmdCopyImageToBuffer.
+        LOG_WARNING(Render_Vulkan, "Skipping raw {} capture: unsupported format {} ({}x{})",
+                    name, vk::to_string(actual_format), w, h);
+        return;
+    }
     const VkBufferCreateInfo buffer_ci{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
                                        .size = VkDeviceSize(w) * h * 4,
                                        .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT};
@@ -509,7 +505,7 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
                 DumpRaw(instance, draw_scheduler, cmdbuf, image.GetImage(),
                         vk::ImageLayout::eTransferSrcOptimal, image.info.size.width,
                     image.info.size.height, "display", frame_dump_index,
-                    RawChannelOrder(view_info.format));
+                    image.info.pixel_format);
             }
             auto& view = image.FindView(view_info);
             if (view.image_view) {
@@ -570,8 +566,8 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
         cmdbuf.pipelineBarrier2({.memoryBarrierCount = 1, .pMemoryBarriers = &done});
         DumpRaw(instance, draw_scheduler, cmdbuf, frame->image, vk::ImageLayout::eGeneral,
             frame->width, frame->height, "output", frame_dump_index,
-            RawChannelOrder(swapchain.GetHDR() ? vk::Format::eUndefined
-                               : swapchain.GetSurfaceFormat().format));
+            swapchain.GetHDR() ? vk::Format::eUndefined
+                               : swapchain.GetSurfaceFormat().format);
         std::printf("Frame dump %d at flip %llu\n", frame_dump_index,
                     static_cast<unsigned long long>(PortStats::flips.load()));
         ++frame_dump_index;
