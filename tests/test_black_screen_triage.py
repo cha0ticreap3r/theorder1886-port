@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -91,6 +92,17 @@ class BlackScreenTriageTest(unittest.TestCase):
         result = triage.compare_folders(triage.scan_folder(self.old),
                                         triage.scan_folder(self.new))
         self.assertEqual(result['matched'][0]['assessment'], 'different_resolution')
+
+    def test_read_error_redacts_private_path_even_when_oserror_has_filename(self):
+        private = self.root / 'secret-home' / 'captures'
+        private.mkdir(parents=True)
+        frame = write_raw(private, 'display', 0, 8, 8, (10, 20, 30))
+        with mock.patch.object(Path, 'read_bytes',
+                               side_effect=PermissionError(13, 'Access denied', str(frame))):
+            report = triage.scan_folder(private)
+        self.assertEqual(len(report['errors']), 1)
+        self.assertIn('capture read failed (PermissionError)', report['errors'][0])
+        self.assertNotIn(str(self.root), json.dumps(report))
 
     def test_report_does_not_disclose_absolute_paths_and_cli_fails_on_corrupt(self):
         secret_dir = self.root / 'private-user-profile'
