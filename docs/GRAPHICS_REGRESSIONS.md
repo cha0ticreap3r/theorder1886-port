@@ -1,5 +1,24 @@
 # Graphics regression checkpoint
 
+## 2026-10-28: capture-based black-screen stage diagnosis (draft PR)
+
+Issues #43/#47 describe audio, subtitles/HUD and a black gameplay scene
+after v0.6.1. The old/new renderer comparison still needs a matched GPU,
+driver and scene capture to establish a cause. The presenter already supports
+two RAW dump stages, `display` (before composition) and `output` (before
+swapchain presentation). A new dependency-free
+`tools/black_screen_triage.py` compares their 8-bit center/whole-frame
+visibility and can contrast candidate/baseline captures by numbered flip.
+It validates lengths/dimensions, skips unsupported channel order, and reports
+only filenames and aggregate metrics, including on read errors.
+
+This distinguishes a likely dark guest display buffer from a likely
+post-processing darkening without claiming either stage is a proven defect.
+See `docs/RAW_FRAME_VISIBILITY_TRIAGE.md` for controlled capture steps.
+The helper does not test actual Vulkan drivers, prove a checkpoint match or
+resolve #43/#47. Avoid deleting caches/saves or enabling continuous RAW
+captures at high frequency.
+
 ## 2026-10-27: swapchain composite-alpha surface compatibility (draft)
 
 The old `Swapchain::SetSurfaceProperties` selected `eOpaque` whenever
