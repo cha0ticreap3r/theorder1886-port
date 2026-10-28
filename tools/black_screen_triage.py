@@ -122,7 +122,11 @@ def scan_folder(directory):
             if key in collected:
                 raise ValueError(f"duplicate frame/stage: {path.name}")
             collected[key] = frame
-        except (OSError, ValueError) as error:
+        except OSError as error:
+            # OSError.__str__ can include the absolute private capture path.
+            # Keep only the basename and exception type in shareable JSON.
+            errors.append(f"{path.name}: capture read failed ({type(error).__name__})")
+        except ValueError as error:
             errors.append(str(error))
     indices = sorted({key[0] for key in collected})
     frames = []
